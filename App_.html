@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>PassaTempo Hub | Administração</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: #101827;
+    color: #f8fafc;
+    font-family: Arial, sans-serif;
+}
+
+header {
+    padding: 22px 16px;
+    background: #18253a;
+    border-bottom: 3px solid #38bdf8;
+}
+
+header h1 {
+    margin: 0 0 7px;
+    color: #38bdf8;
+    font-size: 25px;
+}
+
+header p {
+    margin: 0;
+    color: #cbd5e1;
+}
+
+main {
+    width: 100%;
+    max-width: 750px;
+    margin: auto;
+    padding: 18px 13px 35px;
+}
+
+.panel {
+    margin-bottom: 16px;
+    padding: 17px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 14px;
+}
+
+h2 { font-size: 19px; }
+
+input, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 9px;
+    border-radius: 9px;
+    font: inherit;
+}
+
+input {
+    color: white;
+    background: #101827;
+    border: 1px solid #475569;
+}
+
+button {
+    background: #38bdf8;
+    color: #082032;
+    border: 0;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button.secondary {
+    background: #475569;
+    color: white;
+}
+
+button.danger {
+    background: #7f1d1d;
+    color: white;
+}
+
+button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+small, .muted {
+    color: #cbd5e1;
+    line-height: 1.5;
+}
+
+#fileList {
+    padding-left: 20px;
+    overflow-wrap: anywhere;
+}
+
+.project {
+    padding: 14px 0;
+    border-top: 1px solid #475569;
+}
+
+.project h3 {
+    overflow-wrap: anywhere;
+}
+
+.status {
+    display: inline-block;
+    padding: 5px 9px;
+    margin: 5px 0;
+    border-radius: 20px;
+    background: #334155;
+    font-size: 13px;
+}
+
+iframe {
+    display: block;
+    width: 100%;
+    height: 300px;
+    margin-top: 12px;
+    background: white;
+    border: 1px solid #475569;
+    border-radius: 8px;
+}
+
+footer {
+    padding: 20px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+}
+</style>
+</head>
+
+<body>
+<header>
+    <h1>🚀 PassaTempo Hub</h1>
+    <p>Painel privado para administrar seus sites.</p>
+</header>
+
+<main>
+    <section class="panel">
+        <h2>📁 Novo projeto</h2>
+
+        <label for="projectName">Nome do projeto</label>
+        <input id="projectName" maxlength="60"
+               placeholder="Ex.: PassaTempo Games">
+
+        <label for="projectFiles">Arquivos do site</label>
+        <input id="projectFiles" type="file" multiple
+               accept=".html,.htm,.css,.js,.png,.jpg,.jpeg,.webp,.gif,.svg,.ico,.json,.txt,.woff,.woff2">
+
+        <p class="muted">
+            Selecione os arquivos do site. Inclua o index.html,
+            os estilos CSS, os scripts JavaScript e as imagens.
+        </p>
+
+        <ul id="fileList"></ul>
+
+        <button id="addButton">Adicionar para revisão</button>
+        <p id="message" aria-live="polite"></p>
+    </section>
+
+    <section class="panel">
+        <h2>🗂️ Projetos cadastrados</h2>
+        <p class="muted">
+            Revise cada projeto antes de autorizar sua futura publicação.
+        </p>
+        <div id="projects">
+            <p class="muted">Nenhum projeto cadastrado nesta sessão.</p>
+        </div>
+    </section>
+</main>
+
+<footer>PassaTempo Hub · Feito por Vinicios Morais</footer>
+
+<script>
+"use strict";
+
+const nameInput = document.getElementById("projectName");
+const fileInput = document.getElementById("projectFiles");
+const fileList = document.getElementById("fileList");
+const message = document.getElementById("message");
+const projectsArea = document.getElementById("projects");
+const addButton = document.getElementById("addButton");
+
+let selectedFiles = [];
+let projects = [];
+let nextId = 1;
+
+const allowedExtensions =
+    /\.(html?|css|js|png|jpe?g|webp|gif|svg|ico|json|txt|woff2?)$/i;
+
+fileInput.addEventListener("change", () => {
+    selectedFiles = Array.from(fileInput.files || []);
+    fileList.innerHTML = "";
+
+    selectedFiles.forEach(file => {
+        const li = document.createElement("li");
+        li.textContent = file.name + " (" + formatSize(file.size) + ")";
+        fileList.appendChild(li);
+    });
+
+    message.textContent = selectedFiles.length
+        ? selectedFiles.length + " arquivo(s) selecionado(s)."
+        : "Nenhum arquivo selecionado.";
+});
+
+function formatSize(bytes) {
+    if (bytes < 1024) return bytes + " bytes";
+    if (bytes < 1024 * 1024)
+        return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+}
+
+function findIndexFile(files) {
+    return files.find(file =>
+        file.name.toLowerCase() === "index.html"
+    );
+}
+
+addButton.addEventListener("click", () => {
+    const name = nameInput.value.trim();
+
+    if (!name) {
+        message.textContent = "Digite o nome do projeto.";
+        return;
+    }
+
+    if (!selectedFiles.length) {
+        message.textContent = "Selecione os arquivos do projeto.";
+        return;
+    }
+
+    if (selectedFiles.some(file => !allowedExtensions.test(file.name))) {
+        message.textContent =
+            "Há arquivos com extensões não permitidas neste protótipo.";
+        return;
+    }
+
+    const indexFile = findIndexFile(selectedFiles);
+
+    if (!indexFile) {
+        message.textContent =
+            "O projeto precisa conter um arquivo chamado index.html.";
+        return;
+    }
+
+    if (selectedFiles.some(file => file.size > 10 * 1024 * 1024)) {
+        message.textContent =
+            "Cada arquivo deve ter no máximo 10 MB neste protótipo.";
+        return;
+    }
+
+    const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+
+    if (totalSize > 25 * 1024 * 1024) {
+        message.textContent =
+            "O tamanho total do projeto ultrapassa 25 MB.";
+        return;
+    }
+
+    const project = {
+        id: nextId++,
+        name,
+        files: selectedFiles.slice(),
+        status: "Aguardando revisão",
+        preview: null
+    };
+
+    projects.push(project);
+    nameInput.value = "";
+    fileInput.value = "";
+    selectedFiles = [];
+    fileList.innerHTML = "";
+    message.textContent =
+        "Projeto adicionado à lista de revisão.";
+    renderProjects();
+});
+
+function renderProjects() {
+    projectsArea.innerHTML = "";
+
+    if (!projects.length) {
+        projectsArea.textContent = "Nenhum projeto cadastrado nesta sessão.";
+        return;
+    }
+
+    projects.forEach(project => {
+        const card = document.createElement("article");
+        card.className = "project";
+
+        const heading = document.createElement("h3");
+        heading.textContent = project.name;
+
+        const status = document.createElement("span");
+        status.className = "status";
+        status.textContent = project.status;
+
+        const details = document.createElement("p");
+        details.className = "muted";
+        details.textContent =
+            project.files.length + " arquivo(s) · " +
+            formatSize(project.files.reduce((sum, f) => sum + f.size, 0));
+
+        const previewButton = document.createElement("button");
+        previewButton.textContent = "Visualizar HTML";
+        previewButton.onclick = () => previewProject(project);
+
+        const approveButton = document.createElement("button");
+        approveButton.textContent = "Aprovar revisão";
+        approveButton.onclick = () => {
+            project.status = "Aprovado para publicação";
+            renderProjects();
+        };
+
+        const rejectButton = document.createElement("button");
+        rejectButton.textContent = "Rejeitar projeto";
+        rejectButton.className = "danger";
+        rejectButton.onclick = () => {
+            project.status = "Rejeitado";
+            renderProjects();
+        };
+
+        card.append(heading, status, details,
+                    previewButton, approveButton, rejectButton);
+
+        if (project.preview) {
+            const frame = document.createElement("iframe");
+            frame.title = "Pré-visualização de " + project.name;
+            frame.setAttribute("sandbox", "");
+            frame.srcdoc = project.preview;
+            card.appendChild(frame);
+        }
+
+        projectsArea.appendChild(card);
+    });
+}
+
+async function previewProject(project) {
+    const indexFile = findIndexFile(project.files);
+
+    if (!indexFile) {
+        alert("O projeto não possui index.html.");
+        return;
+    }
+
+    project.preview = await indexFile.text();
+    renderProjects();
+}
+</script>
+</body>
+</html>
